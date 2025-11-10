@@ -61,6 +61,8 @@ export function InteractivePlayground() {
   const momentumRef = useRef<Point>({ x: 0, y: 0 })
   const adamMRef = useRef<Point>({ x: 0, y: 0 })
   const adamVRef = useRef<Point>({ x: 0, y: 0 })
+  const rmspropCacheRef = useRef<Point>({ x: 0, y: 0 })
+  const adagradCacheRef = useRef<Point>({ x: 0, y: 0 })
 
   useEffect(() => {
     setConfig(optimizerConfigs[selectedOptimizer])
@@ -97,6 +99,8 @@ export function InteractivePlayground() {
     momentumRef.current = { x: 0, y: 0 }
     adamMRef.current = { x: 0, y: 0 }
     adamVRef.current = { x: 0, y: 0 }
+    rmspropCacheRef.current = { x: 0, y: 0 }
+    adagradCacheRef.current = { x: 0, y: 0 }
     if (animationRef.current) {
       cancelAnimationFrame(animationRef.current)
     }
@@ -159,6 +163,31 @@ export function InteractivePlayground() {
 
         newPoint.x -= (config.learningRate * mHatX) / (Math.sqrt(vHatX) + eps)
         newPoint.y -= (config.learningRate * mHatY) / (Math.sqrt(vHatY) + eps)
+        break
+
+      case "rmsprop":
+        const decay = config.momentum || 0.9
+        const epsilon = config.epsilon || 1e-8
+
+        // Update moving average of squared gradients
+        rmspropCacheRef.current.x = decay * rmspropCacheRef.current.x + (1 - decay) * grad.x * grad.x
+        rmspropCacheRef.current.y = decay * rmspropCacheRef.current.y + (1 - decay) * grad.y * grad.y
+
+        // Update parameters
+        newPoint.x -= (config.learningRate * grad.x) / (Math.sqrt(rmspropCacheRef.current.x) + epsilon)
+        newPoint.y -= (config.learningRate * grad.y) / (Math.sqrt(rmspropCacheRef.current.y) + epsilon)
+        break
+
+      case "adagrad":
+        const epsAdagrad = config.epsilon || 1e-8
+
+        // Accumulate squared gradients
+        adagradCacheRef.current.x += grad.x * grad.x
+        adagradCacheRef.current.y += grad.y * grad.y
+
+        // Update parameters with adaptive learning rate
+        newPoint.x -= (config.learningRate * grad.x) / (Math.sqrt(adagradCacheRef.current.x) + epsAdagrad)
+        newPoint.y -= (config.learningRate * grad.y) / (Math.sqrt(adagradCacheRef.current.y) + epsAdagrad)
         break
     }
 
